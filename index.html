@@ -617,11 +617,11 @@ function rigaDi(zc){ return CY - (-cam.y*FOC/zc - cam.fy*FOC)/cam.uy; }
 // La lava si dipinge su una tela più piccola e poi si ingrandisce: costa molto meno. Se lo schermo è lento si rimpicciolisce ancora.
 let RID = 2; const telaLava = document.createElement('canvas'), ctxL = telaLava.getContext('2d', { alpha:false });
 const patMagma = ctxL.createPattern(texMagma(), 'repeat'), patCrosta = ctxL.createPattern(texCrosta(), 'repeat'), patGhiaccio = ctxL.createPattern(texGhiaccio(), 'repeat');
-const matP = window.DOMMatrix ? new DOMMatrix() : null, STRISCE = !!(matP && patMagma && patMagma.setTransform);
+const STRISCE = !!(patMagma && patCrosta);
 misura();
 function stendi(pat, N, k, sx, sy, y0, yO){
   const w = telaLava.width, hh = telaLava.height, cx = CX/RID, cy = CY/RID, foc = FOC/RID;
-  let y = y0;
+  let y = y0; ctxL.fillStyle = pat;
   while (y < hh){
     const h = y - yO < 50 ? 1 : 2, yc = y + h/2, dy = cam.fy*foc + cam.uy*(cy - yc);
     if (dy > -1e-4){ y += h; continue; }
@@ -632,11 +632,15 @@ function stendi(pat, N, k, sx, sy, y0, yO){
     if (Math.abs(det) > 1e-9){
       const e = ((k*(Cx - cam.rx*t*cx - Gx*yc) + sx) % N + N) % N, f = ((k*(Cz - cam.rz*t*cx - Gz*yc) + sy) % N + N) % N;
       const ia = d/det, ib = -b/det, ic = -c/det, id = a/det;
-      matP.a = ia; matP.b = ib; matP.c = ic; matP.d = id; matP.e = -(ia*e + ic*f); matP.f = -(ib*e + id*f);
-      pat.setTransform(matP); ctxL.fillStyle = pat; ctxL.fillRect(0, y, w, h + .5);
+      // Si sposta il foglio (la trasformazione della tela), non il motivo: così viene uguale in tutti i browser.
+      // Spostare il motivo con setTransform, su Safari e iPhone, dava una lava a mattoncini.
+      ctxL.setTransform(ia, ib, ic, id, -(ia*e + ic*f), -(ib*e + id*f));
+      const y1 = y + h + .5;
+      ctxL.beginPath(); ctxL.moveTo(c*y + e, d*y + f); ctxL.lineTo(a*w + c*y + e, b*w + d*y + f); ctxL.lineTo(a*w + c*y1 + e, b*w + d*y1 + f); ctxL.lineTo(c*y1 + e, d*y1 + f); ctxL.fill();
     }
     y += h;
   }
+  ctxL.setTransform(1, 0, 0, 1, 0, 0);
 }
 function sfondo(){
   const yO = CY + cam.fy*FOC/cam.uy, y0 = clamp(Math.round(yO), 0, H);
