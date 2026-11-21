@@ -576,37 +576,61 @@ function rumoreRipetuto(seme){
   return (u, v) => (uno(u,v,0)*.5 + uno(u,v,1)*.25 + uno(u,v,2)*.125 + uno(u,v,3)*.0625)/.9375;
 }
 const liscio = (a, b, x) => { const t = clamp((x-a)/(b-a), 0, 1); return t*t*(3-2*t); };
-function texPavimento(ghiaccio){
-  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data;
-  const f1 = rumoreRipetuto(ghiaccio ? 5 : 9), f2 = rumoreRipetuto(ghiaccio ? 6 : 11);
+function texGhiaccio(){
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data, f1 = rumoreRipetuto(5), f2 = rumoreRipetuto(6);
   for (let j=0;j<N;j++) for (let i=0;i<N;i++){
-    const u = i/N, v = j/N, q = f1(u, v), val = f2(u + q*.4, v + q*.25), o = (j*N + i)*4; let r, g, b;
-    if (ghiaccio){ const k = liscio(.3, .7, val), cr = 1 - liscio(0, .035, Math.abs(val - .5)); r = lerp(120, 236, k) + cr*30; g = lerp(185, 248, k) + cr*10; b = lerp(232, 255, k); }
-    else { let k = liscio(.3, .45, val); r = lerp(70, 240, k); g = lerp(10, 48, k); b = lerp(4, 6, k);
-      k = liscio(.45, .6, val); r = lerp(r, 255, k); g = lerp(g, 140, k); b = lerp(b, 14, k);
-      k = liscio(.63, .78, val); g = lerp(g, 236, k); b = lerp(b, 120, k); }
-    d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = 255;
+    const u = i/N, v = j/N, q = f1(u, v), val = f2(u + q*.4, v + q*.25), o = (j*N + i)*4, k = liscio(.3, .7, val), cr = 1 - liscio(0, .035, Math.abs(val - .5));
+    d[o] = lerp(120, 236, k) + cr*30; d[o+1] = lerp(185, 248, k) + cr*10; d[o+2] = lerp(232, 255, k); d[o+3] = 255;
+  }
+  x.putImageData(im, 0, 0); return c;
+}
+// magma: la roccia fusa che scorre sotto, dall'arancio al giallo quasi bianco
+function texMagma(){
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data, f1 = rumoreRipetuto(9), f2 = rumoreRipetuto(11);
+  for (let j=0;j<N;j++) for (let i=0;i<N;i++){
+    const u = i/N, v = j/N, q = f1(u, v), val = f2(u + q*.45, v + q*.3), o = (j*N + i)*4, k = liscio(.28, .72, val), b = liscio(.66, .86, val);
+    d[o] = 255; d[o+1] = lerp(62, 214, k) + b*34; d[o+2] = lerp(0, 46, k*k) + b*150; d[o+3] = 255;
+  }
+  x.putImageData(im, 0, 0); return c;
+}
+// crosta: lastre di roccia scura che galleggiano sul magma. Dove si spaccano resta un buco trasparente
+// e lì sotto si vede il magma che scorre; il bordo delle lastre è rovente.
+function texCrosta(){
+  const N = 512, G = 9, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N), d = im.data;
+  const R = rng(77), px = [], py = [], caldo = [], f1 = rumoreRipetuto(21), f2 = rumoreRipetuto(22), f3 = rumoreRipetuto(23);
+  for (let k=0;k<G*G;k++){ px.push(.15 + R()*.7); py.push(.15 + R()*.7); caldo.push(R()); }
+  for (let j=0;j<N;j++) for (let i=0;i<N;i++){
+    const u0 = i/N, v0 = j/N, X = (u0 + (f1(u0, v0) - .5)*.1)*G, Y = (v0 + (f2(u0, v0) - .5)*.1)*G, cx = Math.floor(X), cy = Math.floor(Y);
+    let a = 9, b = 9, id = 0;
+    for (let oy=-1;oy<=1;oy++) for (let ox=-1;ox<=1;ox++){
+      const gx = cx + ox, gy = cy + oy, k = (((gy % G) + G) % G)*G + (((gx % G) + G) % G), dd = Math.hypot(gx + px[k] - X, gy + py[k] - Y);
+      if (dd < a){ b = a; a = dd; id = k; } else if (dd < b) b = dd;
+    }
+    const dist = b - a, grana = f3(u0*2 % 1, v0*2 % 1), w = .022 + .15*liscio(.5, .82, f3(u0, v0)), fresca = liscio(.7, .95, caldo[id]);
+    const tono = 16 + 30*grana + caldo[id]*14 + 22*liscio(.05, .5, dist), bordo = 1 - liscio(w*1.4, w*6.5, dist), o = (j*N + i)*4;
+    d[o] = lerp(tono*1.2 + fresca*70, 240, bordo); d[o+1] = lerp(tono*.78 + fresca*10, 78, bordo*bordo); d[o+2] = lerp(tono*.74, 10, bordo);
+    d[o+3] = 255*liscio(w, w*2.3, dist)*(1 - .4*fresca);
   }
   x.putImageData(im, 0, 0); return c;
 }
 function rigaDi(zc){ return CY - (-cam.y*FOC/zc - cam.fy*FOC)/cam.uy; }
-// La lava si dipinge su una tela tre volte più piccola e poi si ingrandisce: è sfumata, non si nota, e costa un decimo.
-const RID = 3, telaLava = document.createElement('canvas'), ctxL = telaLava.getContext('2d', { alpha:false });
-const patLava = ctxL.createPattern(texPavimento(false), 'repeat'), patGhiaccio = ctxL.createPattern(texPavimento(true), 'repeat');
-const matP = window.DOMMatrix ? new DOMMatrix() : null, STRISCE = !!(matP && patLava && patLava.setTransform);
+// La lava si dipinge su una tela più piccola e poi si ingrandisce: costa molto meno. Se lo schermo è lento si rimpicciolisce ancora.
+let RID = 2; const telaLava = document.createElement('canvas'), ctxL = telaLava.getContext('2d', { alpha:false });
+const patMagma = ctxL.createPattern(texMagma(), 'repeat'), patCrosta = ctxL.createPattern(texCrosta(), 'repeat'), patGhiaccio = ctxL.createPattern(texGhiaccio(), 'repeat');
+const matP = window.DOMMatrix ? new DOMMatrix() : null, STRISCE = !!(matP && patMagma && patMagma.setTransform);
 misura();
-function stendi(pat, k, sx, sy, y0, yO){
+function stendi(pat, N, k, sx, sy, y0, yO){
   const w = telaLava.width, hh = telaLava.height, cx = CX/RID, cy = CY/RID, foc = FOC/RID;
   let y = y0;
   while (y < hh){
-    const h = y - yO < 34 ? 1 : 2, yc = y + h/2, dy = cam.fy*foc + cam.uy*(cy - yc);
+    const h = y - yO < 50 ? 1 : 2, yc = y + h/2, dy = cam.fy*foc + cam.uy*(cy - yc);
     if (dy > -1e-4){ y += h; continue; }
     const t = -cam.y/dy; if (foc*t > NEB1 + 4){ y += h; continue; }
     const Cx = cam.x + (cam.fx*foc + cam.ux*(cy - yc))*t, Cz = cam.z + (cam.fz*foc + cam.uz*(cy - yc))*t;
     const t2 = -cam.y/(cam.fy*foc + cam.uy*(cy - yc - 1)), Gx = cam.x + (cam.fx*foc + cam.ux*(cy - yc - 1))*t2 - Cx, Gz = cam.z + (cam.fz*foc + cam.uz*(cy - yc - 1))*t2 - Cz;
     const a = k*cam.rx*t, b = k*cam.rz*t, c = k*Gx, d = k*Gz, det = a*d - b*c;
     if (Math.abs(det) > 1e-9){
-      const e = ((k*(Cx - cam.rx*t*cx - Gx*yc) + sx) % 256 + 256) % 256, f = ((k*(Cz - cam.rz*t*cx - Gz*yc) + sy) % 256 + 256) % 256;
+      const e = ((k*(Cx - cam.rx*t*cx - Gx*yc) + sx) % N + N) % N, f = ((k*(Cz - cam.rz*t*cx - Gz*yc) + sy) % N + N) % N;
       const ia = d/det, ib = -b/det, ic = -c/det, id = a/det;
       matP.a = ia; matP.b = ib; matP.c = ic; matP.d = id; matP.e = -(ia*e + ic*f); matP.f = -(ib*e + id*f);
       pat.setTransform(matP); ctxL.fillStyle = pat; ctxL.fillRect(0, y, w, h + .5);
@@ -619,10 +643,15 @@ function sfondo(){
   if (y0 > 0){ const g = ctx.createLinearGradient(0, 0, 0, y0); g.addColorStop(0, CIELO_CSS); g.addColorStop(1, NEB_CSS); ctx.fillStyle = g; ctx.fillRect(0, 0, W, y0); }
   if (y0 >= H) return;
   if (STRISCE){
-    const q0 = Math.floor(y0/RID), w = telaLava.width, hh = telaLava.height;
+    const q0 = Math.floor(y0/RID), w = telaLava.width, hh = telaLava.height, yq = yO/RID;
     ctxL.globalAlpha = 1; ctxL.fillStyle = NEB_CSS; ctxL.fillRect(0, q0, w, hh - q0);
-    if (gelo01 < .99){ stendi(patLava, 12.8, tempo*9, tempo*5, q0, yO/RID); ctxL.globalAlpha = .4; stendi(patLava, 30, -tempo*22, tempo*13, q0, yO/RID); ctxL.globalAlpha = 1; }
-    if (gelo01 > .01){ ctxL.globalAlpha = gelo01; stendi(patGhiaccio, 12.8, 0, 0, q0, yO/RID); ctxL.globalAlpha = 1; }
+    if (gelo01 < .99){
+      stendi(patMagma, 256, 15, tempo*16, tempo*9, q0, yq);            // il magma scorre...
+      stendi(patCrosta, 512, 30, tempo*2.6, tempo*1.3, q0, yq);        // ...sotto la crosta, che va alla deriva piano
+      if (RID < 3){ ctxL.globalCompositeOperation = 'lighter'; ctxL.globalAlpha = .12 + .07*Math.sin(tempo*1.6);   // respiro di calore, a chiazze
+        stendi(patMagma, 256, 5, -tempo*5, tempo*3, q0, yq); ctxL.globalCompositeOperation = 'source-over'; ctxL.globalAlpha = 1; }
+    }
+    if (gelo01 > .01){ ctxL.globalAlpha = gelo01; stendi(patGhiaccio, 256, 12.8, 0, 0, q0, yq); ctxL.globalAlpha = 1; }
     ctx.drawImage(telaLava, 0, q0, w, hh - q0, 0, q0*RID, w*RID, (hh - q0)*RID);
   } else { const g = ctx.createLinearGradient(0, y0, 0, H); g.addColorStop(0, NEB_CSS); g.addColorStop(1, gelo01 > .5 ? '#bfe6ff' : '#ff7a1a'); ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0); }
   // foschia: verso l'orizzonte la lava sfuma nel colore del cielo
@@ -637,11 +666,12 @@ const COL_CIMA = { norm:0x9a8f82, frana:0xdcb478, mobile:0x4f9cc0, bandiera:0x79
 const applica = (M, x, y, z) => ({ x:M[0]*x+M[1]*y+M[2]*z+M[3], y:M[4]*x+M[5]*y+M[6]*z+M[7], z:M[8]*x+M[9]*y+M[10]*z+M[11] });
 
 // roccia: un tronco con la cima piatta. Il colore e il disegno sulla cima dicono che tipo è.
+// I fianchi rientrano verso il basso: la cima che si vede è esattamente il punto dove si può stare in piedi.
 function creaRoccia(p){
-  const n = p.r > 4 ? 18 : 10, g = vuota(), R = rng(Math.abs(Math.round(p.x*31 + p.z*17)) + 5), r = p.r;
+  const n = p.r > 4 ? 22 : 14, g = vuota(), R = rng(Math.abs(Math.round(p.x*31 + p.z*17)) + 5), r = p.r;
   const cC = rgb(COL_CIMA[p.tipo]), cL = rgb(p.tipo === 'frana' ? 0x8a6a48 : 0x5c4c4a);
-  for (let i=0;i<n;i++){ const a = i*2*Math.PI/n; g.v.push(Math.sin(a)*r*1.03, 0, Math.cos(a)*r*1.03); }
-  for (let i=0;i<n;i++){ const a = i*2*Math.PI/n, k = r*(1.08 + R()*.16); g.v.push(Math.sin(a)*k, -p.y, Math.cos(a)*k); }
+  for (let i=0;i<n;i++){ const a = i*2*Math.PI/n; g.v.push(Math.sin(a)*r*1.02, 0, Math.cos(a)*r*1.02); }
+  for (let i=0;i<n;i++){ const a = i*2*Math.PI/n, k = r*(.84 + R()*.12); g.v.push(Math.sin(a)*k, -p.y, Math.cos(a)*k); }
   for (let i=0;i<n;i++){ const j = (i+1)%n, s = .8 + R()*.4; g.f.push({ k:'p', i:[i, n+i, n+j, j], c:cL.map(v => v*s), gl:true }); }
   g.f.push({ k:'p', i:[...Array(n).keys()], c:cC.map(v => v*.68) });
   agg(g, gPoli(cerchio(r*.86, n, 0), cC, { b:-.3 }));
@@ -757,7 +787,7 @@ function creaEroe(){
   E.obj = { strati:[corpo, [E.bolla]], x:0, y:0, z:0, rag:1.6 };
 }
 creaEroe();
-const ombra = { m:rete(gPoli(cerchio(1, 12, 0), 0x000000, { em:true, a:.4 })), obj:null }; ombra.obj = { strati:[[ombra.m]], x:0, y:0, z:0, rag:.8 };
+const ombra = { m:rete(agg(gPoli(cerchio(1, 12, 0), 0x000000, { em:true, a:.45 }), gLinea(cerchio(1.25, 16, .01), .16, 0xffffff, { ch:true, em:true, a:.95, b:-.2 }))), obj:null }; ombra.obj = { strati:[[ombra.m]], x:0, y:0, z:0, rag:.8 };
 const G_BOMBA = gSfera(.55, 0xffa51f, { em:true });
 const G_ANELLO = gLinea(cerchio(1.7, 20, 0), .2, 0xff2a1a, { ch:true, em:true, a:1 });
 const G_DISCO = gPoli(cerchio(1.7, 14, 0), 0xff2a1a, { em:true, a:.38 });
@@ -972,7 +1002,7 @@ function rinasci(){
   L.cibo = Math.max(L.cibo, 40); L.acqua = Math.max(L.acqua, 40);
 }
 function salta(sup){
-  const e = eroe; e.vel.y = sup ? 15 : SALTO; e.aTerra = null; e.coyote = 0; e.buffer = 0; e.superSalto = !!sup;
+  const e = eroe; e.vel.y = sup ? 15 : SALTO; e.aTerra = null; e.coyote = 0; e.buffer = 0; e.superSalto = !!sup; e.noPresa = null; e.saltato = true;
   if (sup){ SUONO.molla(); scoppio(e.pos.x, e.pos.y, e.pos.z, 10, 0xffffff, 3); } else SUONO.salto();
 }
 function usaGelo(){
@@ -1014,7 +1044,9 @@ function muoviEroe(dt){
   const e = eroe, L = liv;
   if (e.aTerra && e.aTerra !== GHIACCIO && !e.aTerra.solido) e.aTerra = null;
   if (e.aTerra && e.aTerra !== GHIACCIO){ e.pos.x += e.aTerra.dx; e.pos.y = e.aTerra.y; }
-  const vmax = VEL*(e.superSalto ? 1.55 : 1), acc = (e.aTerra ? 70 : 42)*dt;
+  const suPrima = e.aTerra;
+  // in aria, se molli i comandi, lo slancio resta: il salto arriva dove l'avevi puntato
+  const vmax = VEL*(e.superSalto ? 1.55 : 1), acc = (e.aTerra ? 70 : (inp.x || inp.z) ? 42 : 14)*dt;
   e.vel.x = avvicina(e.vel.x, inp.x*vmax, acc); e.vel.z = avvicina(e.vel.z, inp.z*vmax, acc);
   e.buffer -= dt; e.coyote -= dt; if (e.aTerra) e.coyote = .12;
   if (inp.molla){ inp.molla = false;
@@ -1048,15 +1080,21 @@ function muoviEroe(dt){
       if (e.aTerra === p){ if (!terra || p.y > terra.y) terra = p; continue; }
       if (e.vel.y <= 0 && prevY >= p.y - toll - Math.abs(p.dy)*2 && e.pos.y <= p.y + .02){ if (!terra || p.y > terra.y) terra = p; continue; }
     }
+    // presa del bordo: se arrivi da un salto e manchi la cima per un soffio, ti aggrappi e sali
+    if (!e.aTerra && e.vel.y < 0 && p !== e.noPresa && d > .001 && d < p.r + .55 && e.pos.y <= p.y + .05 && e.pos.y > p.y - .85){
+      if (d > p.r){ e.pos.x = p.x + dx/d*p.r; e.pos.z = p.z + dz/d*p.r; }
+      if (!terra || p.y > terra.y) terra = p; continue; }
     if (e.pos.y < p.y - .5 && d < p.r + RAG && d > .001){ e.pos.x = p.x + dx/d*(p.r + RAG); e.pos.z = p.z + dz/d*(p.r + RAG); }
   }
   if (terra){
     if (e.aTerra !== terra) atterra(terra, e.vel.y);
-    e.aTerra = terra; e.pos.y = terra.y; e.vel.y = 0; e.superSalto = false;
+    e.aTerra = terra; e.pos.y = terra.y; e.vel.y = 0; e.superSalto = false; e.noPresa = null; e.saltato = false;
   } else if (L.gelo > 0 && e.pos.y <= .08 && e.vel.y <= 0){
     if (e.aTerra !== GHIACCIO && e.vel.y < -3) SUONO.atterra();
     e.aTerra = GHIACCIO; e.pos.y = .08; e.vel.y = 0; e.superSalto = false;
   } else {
+    // sceso a piedi dal bordo (senza saltare): quella roccia non ti riprende, altrimenti non scenderesti mai
+    if (suPrima && suPrima !== GHIACCIO && !e.saltato) e.noPresa = suPrima;
     e.aTerra = null; if (e.pos.y < .05) cadeInLava();
   }
   if (e.invuln > 0) e.invuln -= dt;
@@ -1179,7 +1217,7 @@ function aggiornaVulcani(dt){
 }
 
 /* ---- aspetto: pose, ombra, telecamera ---- */
-const pose = { gS:0, gD:0, bS:0, bD:0, bz:0 };
+const pose = { gS:0, gD:0, bS:0, bD:0, bz:0 }, BIANCO = [255,255,255], ROSSO = [255,60,40];
 function posa(dt){
   const e = eroe, L = liv, v = Math.hypot(e.vel.x, e.vel.z), corsa = clamp(v/VEL, 0, 1);
   if (v > .6 && L.stato === 'gioco') e.rot = angVerso(e.rot, Math.atan2(e.vel.x, e.vel.z), 14*dt);
@@ -1201,6 +1239,8 @@ function posa(dt){
   E.obj.spento = e.invuln > 0 && Math.floor(tempo*14) % 2 === 0;
   const sy = suoloSotto(e.pos.x, e.pos.z, e.pos.y), so = clamp(.62 - (e.pos.y - sy)*.05, .28, .62);
   ombra.m.M = mMul(mTr(e.pos.x, sy + .03, e.pos.z), mSc(so, 1, so)); ombra.obj.x = e.pos.x; ombra.obj.y = sy; ombra.obj.z = e.pos.z;
+  const inAria = !e.aTerra && L.stato === 'gioco', anello = ombra.m.f[1]; anello.off = !inAria; anello.c = sy > .1 || L.gelo > 0 ? BIANCO : ROSSO;
+  if (inAria) ombra.m.M = mMul(mTr(e.pos.x, sy + .03, e.pos.z), mSc(.5, 1, .5));
   ombra.obj.spento = L.stato === 'lava';
 }
 function telecamera(dt){
@@ -1329,7 +1369,7 @@ $('#bt-avanti').onclick = () => avvia(app.dopo === 'avanti' ? liv.n + 1 : app.do
 $('#bt-menu').onclick = vaiMenu;
 
 /* ============ giro principale ============ */
-let ultimo = 0;
+let ultimo = 0, lento = 0;
 // la fisica va a piccoli passi anche quando lo schermo è lento, così il gioco non rallenta e non si attraversano le rocce
 function fotogramma(dt){ const n = Math.max(2, Math.ceil(dt/.0125)); for (let i=0;i<n;i++) aggiorna(dt/n); posa(dt); telecamera(dt); ambiente(dt); aggiornaParticelle(dt); barre(); }
 function giro(ts){
@@ -1337,6 +1377,7 @@ function giro(ts){
   const dt = Math.min(.12, (ts - ultimo)/1000 || 0); ultimo = ts;
   if (app.fermo) return;
   tempo += dt;
+  if (RID === 2 && app.modo === 'gioco'){ lento = dt > .05 ? lento + dt : Math.max(0, lento - dt*.5); if (lento > 2.5){ RID = 3; misura(); } }
   if (app.modo === 'gioco') fotogramma(dt);
   else if (app.modo === 'menu' || app.modo === 'bottega'){
     // dietro al menu: l'esploratore sulla prima isola, con la telecamera che gli gira piano intorno
